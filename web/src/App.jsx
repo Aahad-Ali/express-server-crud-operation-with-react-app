@@ -7,28 +7,53 @@ import * as yup from "yup";
 
 // import MyApp from "./components/meterial ui navbar/navbar";
 
-// let baseUrl = ``;
-// if (window.location.href.split(":")[0] === "http") {
-//   baseUrl = `http://localhost:5001`;
-// }
+let baseUrl = ``;
+if (window.location.href.split(":")[0] === "http") {
+  baseUrl = `http://localhost:5001`;
+}
 
 function App() {
-  const [weatherData, setWeatherData] = useState(null);
+  const [products, setProducts] = useState([]);
+  const [loadProduct, setLoadProduct] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editingProduct, setEditingProduct] = useState(null);
 
   const getAllProducts = async () => {
     try {
-      const response = await axios.get(`http://localhost:5001/products`);
+      const response = await axios.get(`${baseUrl}/products`);
 
       console.log("response: ", response.data);
+      setProducts(response.data.data);
     } catch (err) {
       console.log("error in getting all products: ", err);
       alert("error in getting all products:");
     }
   };
 
+  const deleteProduct = async (id) => {
+    try {
+      const response = await axios.delete(`${baseUrl}/product/${id}`);
+
+      console.log("response: ", response.data);
+      setLoadProduct(!loadProduct);
+    } catch (err) {
+      console.log("error in getting all products: ", err);
+      alert("error in getting all products:");
+    }
+  };
+
+  const editMode = (product) => {
+    setIsEditMode(!isEditMode);
+    setEditingProduct(product);
+
+    updateFormik.setFieldValue("productName", product.name);
+    updateFormik.setFieldValue("productDescription", product.description);
+    updateFormik.setFieldValue("productPrice", product.price);
+  };
+
   useEffect(() => {
     getAllProducts();
-  }, []);
+  }, [loadProduct]);
 
   const myFormik = useFormik({
     initialValues: {
@@ -59,7 +84,7 @@ function App() {
       console.log("values: ", values);
 
       axios
-        .post(`http://localhost:5001/product`, {
+        .post(`${baseUrl}/product`, {
           name: values.productName,
           description: values.productDescription,
           price: values.productPrice,
@@ -67,7 +92,57 @@ function App() {
         .then((response) => {
           console.log("response: ", response.data);
 
-          setWeatherData(response.data);
+          getAllProducts();
+
+          // setProducts(response.data.data);
+        })
+        .catch((err) => {
+          console.log("error: ", err);
+        });
+    },
+  });
+
+  const updateFormik = useFormik({
+    initialValues: {
+      productName: "",
+      productDescription: "",
+      productPrice: "",
+    },
+    validationSchema: yup.object({
+      productName: yup
+        .string("Enter your product name")
+        .required("This field is required")
+        .min(3, "product name minimum 3 characters ")
+        .max(30, "product name maximum  30 characters "),
+
+      productDescription: yup
+        .string("Enter your product discription")
+        .required("This field is required")
+        .min(3, "product discription minimum 3 characters ")
+        .max(500, "product discription maximum 500 characters "),
+
+      productPrice: yup
+        .number("Enter your product price")
+        .required("This field is required")
+        .positive("enter possitive price"),
+    }),
+
+    onSubmit: (values) => {
+      console.log("values: ", values);
+
+      axios
+        .put(`${baseUrl}/product/${editingProduct.id}`, {
+          name: values.productName,
+          description: values.productDescription,
+          price: values.productPrice,
+        })
+        .then((response) => {
+          console.log("response: ", response.data);
+
+          getAllProducts();
+          setIsEditMode(false);
+
+          // setProducts(response.data.data);
         })
         .catch((err) => {
           console.log("error: ", err);
@@ -166,8 +241,91 @@ function App() {
 
         <br />
         <br />
+        <div>
+          {products.map((eachProduct, i) => (
+            <div
+              className="container"
+              key={i}
+              style={{ padding: "20px", margin: "10px" }}
+            >
+              <div className="card">
+                <div className="card-body">
+                  <h1 className="card-title">{eachProduct.name}</h1>
+                  <p className="card-text">{eachProduct.description}</p>
+                  <p className="card-title">{eachProduct.id}</p>
+                  <h5 className="card-title">{eachProduct.price}</h5>
+                  <button
+                    onClick={() => {
+                      deleteProduct(eachProduct.id);
+                    }}
+                  >
+                    Delete
+                  </button>
+                  <button
+                    onClick={() => {
+                      editMode(eachProduct);
+                    }}
+                  >
+                    Edit
+                  </button>
 
-        {weatherData === null ? null : <div></div>}
+                  {isEditMode && editingProduct.id === eachProduct.id ? (
+                    <div>
+                      <form onSubmit={updateFormik.handleSubmit}>
+                        <input
+                          id="productName"
+                          placeholder="Product Name"
+                          value={updateFormik.values.productName}
+                          onChange={updateFormik.handleChange}
+                        />
+                        {updateFormik.touched.productName &&
+                        Boolean(updateFormik.errors.productName) ? (
+                          <span style={{ color: "red" }}>
+                            {updateFormik.errors.productName}
+                          </span>
+                        ) : null}
+
+                        <br />
+
+                        <input
+                          id="productDescription"
+                          placeholder="Product Description"
+                          value={updateFormik.values.productDescription}
+                          onChange={updateFormik.handleChange}
+                        />
+                        {updateFormik.touched.productName &&
+                        Boolean(updateFormik.errors.productDescription) ? (
+                          <span style={{ color: "red" }}>
+                            {updateFormik.errors.productDescription}
+                          </span>
+                        ) : null}
+
+                        <br />
+
+                        <input
+                          id="productPrice"
+                          placeholder="Product Price"
+                          value={updateFormik.values.productPrice}
+                          onChange={updateFormik.handleChange}
+                        />
+                        {updateFormik.touched.productName &&
+                        Boolean(updateFormik.errors.productPrice) ? (
+                          <span style={{ color: "red" }}>
+                            {updateFormik.errors.productPrice}
+                          </span>
+                        ) : null}
+
+                        <br />
+
+                        <button type="submit"> Submit </button>
+                      </form>
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
